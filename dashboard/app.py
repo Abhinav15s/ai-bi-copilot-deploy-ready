@@ -12,6 +12,9 @@ from pathlib import Path
 import pandas as pd
 import plotly.express as px
 import streamlit as st
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Allow imports from the project root when running from any working directory
 ROOT = Path(__file__).parent.parent
@@ -121,7 +124,7 @@ if page == "📊 Business Overview":
             color="region",
             labels={"revenue": "Total Revenue ($)", "region": "Region"},
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
     with col_right:
         st.subheader("Monthly Revenue Trend")
@@ -134,7 +137,7 @@ if page == "📊 Business Overview":
             markers=True,
             labels={"revenue": "Revenue ($)", "year_month": "Month"},
         )
-        st.plotly_chart(fig2, use_container_width=True)
+        st.plotly_chart(fig2, width="stretch")
 
 
 # ---------------------------------------------------------------------------
@@ -168,11 +171,11 @@ elif page == "⚙️ Process Mining":
         color_discrete_map={"Bottleneck": "crimson", "Normal": "steelblue"},
         labels={"avg_duration_minutes": "Avg Duration (min)", "activity": "Activity"},
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
     st.subheader("Top 10 Slowest Cases")
     top_slow = cycle.sort_values("total_cycle_time_minutes", ascending=False).head(10)
-    st.dataframe(top_slow.reset_index(drop=True), use_container_width=True)
+    st.dataframe(top_slow.reset_index(drop=True), width="stretch")
 
 
 # ---------------------------------------------------------------------------
@@ -207,7 +210,7 @@ elif page == "💬 Sentiment Analysis":
             {"Sentiment": list(counts.keys()), "Count": list(counts.values())}
         )
         fig = px.pie(pie_df, names="Sentiment", values="Count", hole=0.35)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
     with col_right:
         st.subheader("Avg Sentiment Score by Category")
@@ -221,13 +224,13 @@ elif page == "💬 Sentiment Analysis":
             y="Avg Sentiment Score",
             color="Category",
         )
-        st.plotly_chart(fig2, use_container_width=True)
+        st.plotly_chart(fig2, width="stretch")
 
     st.subheader("Sample Negative Reviews")
     neg = reviews[reviews["sentiment_label"] == "negative"][
         ["date", "product_category", "customer_segment", "review_text", "rating", "sentiment_score"]
     ].head(20)
-    st.dataframe(neg.reset_index(drop=True), use_container_width=True)
+    st.dataframe(neg.reset_index(drop=True), width="stretch")
 
 
 # ---------------------------------------------------------------------------
@@ -258,10 +261,10 @@ elif page == "🤖 Ask the Copilot":
 
     if st.button("Ask 🚀") and question.strip():
         import os
-        api_key = os.getenv("OPENAI_API_KEY", "")
-        if not api_key or api_key == "your-openai-api-key-here":
+        api_key = os.getenv("GROQ_API_KEY", "")
+        if not api_key or api_key == "your-groq-api-key-here":
             st.warning(
-                "⚠️ OpenAI API key not found.  "
+                "⚠️ Groq API key not found.  "
                 "Copy `.env.example` to `.env` and add your key, then restart the app."
             )
         else:

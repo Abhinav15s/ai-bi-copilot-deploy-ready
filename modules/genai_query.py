@@ -1,7 +1,7 @@
 """
 GenAI Query layer for AI BI Copilot.
 
-Uses LangChain + OpenAI to translate natural language questions into SQL,
+Uses LangChain + Groq to translate natural language questions into SQL,
 execute them against the SQLite database, and return a plain-English answer.
 
 Usage::
@@ -26,19 +26,34 @@ from dotenv import load_dotenv
 load_dotenv()
 
 import os
+import re
 
 _DB_PATH = Path(__file__).parent.parent / "data" / "business_data.db"
+
+
+def _extract_sql_query(raw_query: str) -> str:
+    query = (raw_query or "").strip()
+    if "```" in query:
+        blocks = re.findall(r"```(?:sql)?\s*(.*?)```", query, flags=re.IGNORECASE | re.DOTALL)
+        if blocks:
+            query = blocks[0].strip()
+    for marker in ("SQLQuery:", "SQL Query:", "Query:"):
+        if marker in query:
+            query = query.split(marker, 1)[1].strip()
+    query = query.split("SQLResult:", 1)[0].strip()
+    query = query.split("Answer:", 1)[0].strip()
+    return query.strip("` \n;") + ";"
 
 
 def _build_chain():
     """Build and return the LangChain SQL query chain.
 
-    Returns ``None`` and prints an error message when the OpenAI API key is
+    Returns ``None`` and prints an error message when the Groq API key is
     absent or when the database file does not exist.
     """
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key or api_key == "your-openai-api-key-here":
-        print("⚠️  OPENAI_API_KEY is not set.  Please copy .env.example to .env and add your key.")
+    api_key = os.getenv("GROQ_API_KEY")
+    if not api_key or api_key == "your-groq-api-key-here":
+        print("⚠️  GROQ_API_KEY is not set.  Please copy .env.example to .env and add your key.")
         return None
 
     if not _DB_PATH.exists():
@@ -47,19 +62,24 @@ def _build_chain():
 
     try:
         from langchain_community.utilities import SQLDatabase
-        from langchain_openai import ChatOpenAI
-        from langchain.chains import create_sql_query_chain
-        from langchain_community.tools.sql_database.tool import QuerySQLDataBaseTool
+        from langchain_groq import ChatGroq
+        from langchain_classic.chains.sql_database.query import create_sql_query_chain
+        from langchain_community.tools import QuerySQLDatabaseTool
         from langchain_core.output_parsers import StrOutputParser
         from langchain_core.prompts import PromptTemplate
-        from langchain_core.runnables import RunnablePassthrough
+        from langchain_core.runnables import RunnableLambda, RunnablePassthrough
         from operator import itemgetter
 
         db = SQLDatabase.from_uri(f"sqlite:///{_DB_PATH}")
-        llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0)
+        llm = ChatGroq(
+            model=os.getenv("GROQ_MODEL", "llama-3.1-8b-instant"),
+            temperature=0,
+            api_key=api_key,
+        )
 
         write_query = create_sql_query_chain(llm, db)
-        execute_query = QuerySQLDataBaseTool(db=db)
+        execute_query = QuerySQLDatabaseTool(db=db)
+        clean_query = RunnableLambda(_extract_sql_query)
 
         answer_prompt = PromptTemplate.from_template(
             """Given the following user question, corresponding SQL query, and SQL result, answer the user question.
@@ -71,7 +91,7 @@ Answer: """
         )
 
         chain = (
-            RunnablePassthrough.assign(query=write_query).assign(
+            RunnablePassthrough.assign(query=write_query | clean_query).assign(
                 result=itemgetter("query") | execute_query
             )
             | answer_prompt
@@ -102,7 +122,7 @@ def ask_question(question: str) -> str:
     if chain is None:
         return (
             "⚠️  The AI query layer is unavailable.  "
-            "Check that OPENAI_API_KEY is set and the database exists."
+            "Check that GROQ_API_KEY is set and the database exists."
         )
     try:
         return chain.invoke({"question": question})

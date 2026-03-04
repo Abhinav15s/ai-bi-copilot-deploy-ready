@@ -7,7 +7,7 @@
 
 ## Executive Summary
 
-AI BI Copilot is a locally-runnable, portfolio-grade analytics platform that combines **Process Mining**, **NLP Sentiment Analysis**, and a **GenAI Query Interface** into one cohesive system. It generates realistic synthetic business data, analyses it across multiple dimensions, and surfaces insights through an interactive Streamlit dashboard — all powered by open-source tools and OpenAI's GPT models.
+AI BI Copilot is a locally-runnable, portfolio-grade analytics platform that combines **Process Mining**, **NLP Sentiment Analysis**, and a **GenAI Query Interface** into one cohesive system. It generates realistic synthetic business data, analyses it across multiple dimensions, and surfaces insights through an interactive Streamlit dashboard — all powered by open-source tools and Groq-hosted LLMs.
 
 ---
 
@@ -18,7 +18,7 @@ graph TD
     A[Raw Data Generator<br/>Faker + Python] --> B[(SQLite Database<br/>business_data.db)]
     B --> C[Process Mining Module<br/>pm4py + pandas]
     B --> D[Sentiment Engine<br/>VADER]
-    B --> E[GenAI Query Layer<br/>LangChain + OpenAI]
+    B --> E[GenAI Query Layer<br/>LangChain + Groq]
     C --> F[Streamlit Dashboard]
     D --> F
     E --> F
@@ -34,7 +34,7 @@ graph TD
 | 📊 **Business Overview** | KPI cards, revenue by region, monthly revenue trend |
 | ⚙️ **Process Mining** | Cycle time analysis, bottleneck detection using pm4py |
 | 💬 **Sentiment Analysis** | VADER-powered review classification with category drill-down |
-| 🤖 **GenAI Query** | Natural language → SQL → plain-English answers via LangChain + OpenAI |
+| 🤖 **GenAI Query** | Natural language → SQL → plain-English answers via LangChain + Groq |
 
 ---
 
@@ -47,7 +47,7 @@ graph TD
 | Data Generation | Faker |
 | Process Mining | pm4py, pandas |
 | Sentiment Analysis | VADER (vaderSentiment) |
-| GenAI / NL-to-SQL | LangChain, LangChain-OpenAI, OpenAI GPT-3.5 |
+| GenAI / NL-to-SQL | LangChain, LangChain-Groq, Groq LLM |
 | Dashboard | Streamlit + Plotly |
 | Notebooks | Jupyter / ipykernel |
 
@@ -63,9 +63,9 @@ cd ai-bi-copilot
 # 2. Install dependencies
 pip install -r requirements.txt
 
-# 3. Add your OpenAI API key
+# 3. Add your Groq API key
 cp .env.example .env
-# Edit .env and replace "your-openai-api-key-here" with your actual key
+# Edit .env and replace "your-groq-api-key-here" with your actual key
 
 # 4. Generate synthetic data
 python data/generate_data.py
