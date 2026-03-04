@@ -1,11 +1,9 @@
 """Unit tests for modules.process_mining."""
-import pandas as pd
-import pytest
 
 from modules.process_mining import (
+    SLA_MINUTES,
     calculate_cycle_times,
     detect_bottlenecks,
-    SLA_MINUTES,
 )
 
 

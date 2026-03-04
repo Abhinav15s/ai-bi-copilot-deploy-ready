@@ -16,7 +16,6 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-
 ROOT = Path(__file__).resolve().parent.parent
 DB_PATH = ROOT / "data" / "business_data.db"
 
@@ -69,8 +68,8 @@ def main() -> int:
         passed = False
 
     try:
-        import streamlit  # noqa: F401
         import langchain_groq  # noqa: F401
+        import streamlit  # noqa: F401
 
         _ok("Dependencies", "streamlit and langchain-groq import successfully")
     except Exception as exc:  # noqa: BLE001

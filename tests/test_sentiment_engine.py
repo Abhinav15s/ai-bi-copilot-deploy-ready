@@ -1,10 +1,8 @@
 """Unit tests for modules.sentiment_engine."""
-import pandas as pd
-import pytest
 
 from modules.sentiment_engine import (
-    analyze_sentiment,
     analyze_reviews_df,
+    analyze_sentiment,
     get_sentiment_summary,
 )
 
