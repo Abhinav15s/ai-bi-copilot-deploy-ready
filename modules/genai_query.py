@@ -18,15 +18,14 @@ Sample questions
 - "What percentage of orders were delayed by more than 2 days?"
 """
 
+import os
+import re
 from pathlib import Path
 
 # Load .env early so the API key is available before any LangChain import
 from dotenv import load_dotenv
 
 load_dotenv()
-
-import os
-import re
 
 _DB_PATH = Path(__file__).parent.parent / "data" / "business_data.db"
 
@@ -70,14 +69,15 @@ def _build_chain():
         return None
 
     try:
-        from langchain_community.utilities import SQLDatabase
-        from langchain_groq import ChatGroq
+        from operator import itemgetter
+
         from langchain.chains import create_sql_query_chain
         from langchain_community.tools import QuerySQLDatabaseTool
+        from langchain_community.utilities import SQLDatabase
         from langchain_core.output_parsers import StrOutputParser
         from langchain_core.prompts import PromptTemplate
         from langchain_core.runnables import RunnableLambda, RunnablePassthrough
-        from operator import itemgetter
+        from langchain_groq import ChatGroq
 
         db = SQLDatabase.from_uri(f"sqlite:///{_DB_PATH}")
         llm = ChatGroq(

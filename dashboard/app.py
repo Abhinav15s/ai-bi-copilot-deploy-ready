@@ -14,12 +14,9 @@ import plotly.express as px
 import streamlit as st
 from dotenv import load_dotenv
 
-load_dotenv()
-
 # Allow imports from the project root when running from any working directory
-ROOT = Path(__file__).parent.parent
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
+if str(Path(__file__).parent.parent) not in sys.path:
+    sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from modules.db import run_query
 from modules.process_mining import (
@@ -29,6 +26,8 @@ from modules.process_mining import (
     load_event_log,
 )
 from modules.sentiment_engine import analyze_reviews_df, get_sentiment_summary
+
+load_dotenv()
 
 # ---------------------------------------------------------------------------
 # Page configuration

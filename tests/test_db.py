@@ -1,8 +1,7 @@
 """Unit tests for modules.db (uses a temporary in-memory SQLite database)."""
+
 import pandas as pd
 import pytest
-from pathlib import Path
-import tempfile
 from sqlalchemy import create_engine, text
 
 from modules.db import get_engine, run_query

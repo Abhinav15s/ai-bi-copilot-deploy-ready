@@ -15,9 +15,8 @@ from pathlib import Path
 import pandas as pd
 
 # Support running this file directly as a script as well as package import
-_ROOT = Path(__file__).parent.parent
-if str(_ROOT) not in sys.path:
-    sys.path.insert(0, str(_ROOT))
+if str(Path(__file__).parent.parent) not in sys.path:
+    sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from modules.db import run_query
 

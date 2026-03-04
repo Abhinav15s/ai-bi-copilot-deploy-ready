@@ -10,8 +10,8 @@ the dashboard or notebooks::
 
 import random
 import uuid
-from pathlib import Path
 from datetime import datetime, timedelta
+from pathlib import Path
 
 import pandas as pd
 from faker import Faker
