@@ -1,3 +1,4 @@
+# ── Runtime ────────────────────────────────────────────────────────────────
 sqlalchemy>=2.0
 pandas>=2.0
 numpy>=1.24
@@ -8,15 +9,9 @@ langchain-core>=0.2
 langchain-groq>=0.2
 langchain-community>=0.2
 streamlit>=1.35
-matplotlib>=3.7
-seaborn>=0.13
 plotly>=5.20
 pm4py>=2.7
 python-dotenv>=1.0
-ipykernel>=6.29
-notebook>=7.0
 
-# Development / testing
-pytest>=8.0
-pytest-cov>=5.0
-ruff>=0.4
+# ── Development / testing (not installed on Streamlit Cloud) ───────────────
+# pip install pytest pytest-cov ruff ipykernel notebook

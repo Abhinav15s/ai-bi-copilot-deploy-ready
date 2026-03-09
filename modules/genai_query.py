@@ -22,13 +22,28 @@ import os
 import re
 from pathlib import Path
 
-# Load .env early so the API key is available before any LangChain import
+# Load .env for local development (no-op on Streamlit Cloud)
 from dotenv import load_dotenv
 
 load_dotenv()
 
-_DB_PATH = Path(__file__).parent.parent / "data" / "business_data.db"
+# ---------------------------------------------------------------------------
+# Secrets helper: prefer st.secrets (Streamlit Cloud) → os.environ (.env)
+# ---------------------------------------------------------------------------
 
+def _get_secret(key: str, default: str = "") -> str:
+    """Return *key* from st.secrets if available, else from os.environ."""
+    try:
+        import streamlit as st
+        value = st.secrets.get(key, "")
+        if value:
+            return value
+    except Exception:  # noqa: BLE001
+        pass
+    return os.environ.get(key, default)
+
+
+_DB_PATH = Path(__file__).parent.parent / "data" / "business_data.db"
 _chain_cache = None  # module-level cache: stores the built LangChain chain or None
 
 
@@ -59,9 +74,9 @@ def _build_chain():
     Returns ``None`` and prints an error message when the Groq API key is
     absent or when the database file does not exist.
     """
-    api_key = os.getenv("GROQ_API_KEY")
+    api_key = _get_secret("GROQ_API_KEY")
     if not api_key or api_key == "your-groq-api-key-here":
-        print("⚠️  GROQ_API_KEY is not set.  Please copy .env.example to .env and add your key.")
+        print("⚠️  GROQ_API_KEY is not set.  Add it to st.secrets or your .env file.")
         return None
 
     if not _DB_PATH.exists():
@@ -81,7 +96,7 @@ def _build_chain():
 
         db = SQLDatabase.from_uri(f"sqlite:///{_DB_PATH}")
         llm = ChatGroq(
-            model=os.getenv("GROQ_MODEL", "llama-3.1-8b-instant"),
+            model=_get_secret("GROQ_MODEL", "llama-3.1-8b-instant"),
             temperature=0,
             api_key=api_key,
         )

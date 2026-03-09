@@ -27,7 +27,40 @@ from modules.process_mining import (
 )
 from modules.sentiment_engine import analyze_reviews_df, get_sentiment_summary
 
-load_dotenv()
+# ---------------------------------------------------------------------------
+# Secrets: inject from st.secrets into os.environ so all modules pick them up
+# Works on Streamlit Cloud (st.secrets) and locally (.env via dotenv).
+# ---------------------------------------------------------------------------
+load_dotenv()  # local dev convenience — no-op on Cloud
+
+import os  # noqa: E402
+
+for _key in ("GROQ_API_KEY", "GROQ_MODEL"):
+    if _key not in os.environ:
+        try:
+            _val = st.secrets.get(_key, "")
+            if _val:
+                os.environ[_key] = _val
+        except Exception:  # noqa: BLE001
+            pass
+
+# ---------------------------------------------------------------------------
+# Database bootstrap: generate synthetic data if DB is missing (Cloud deploy)
+# ---------------------------------------------------------------------------
+_DB_PATH = Path(__file__).parent.parent / "data" / "business_data.db"
+
+if not _DB_PATH.exists():
+    with st.spinner("⏳ First run: generating synthetic business data (takes ~10 s) …"):
+        try:
+            import sys as _sys
+            _data_dir = str(Path(__file__).parent.parent)
+            if _data_dir not in _sys.path:
+                _sys.path.insert(0, _data_dir)
+            from data.generate_data import main as _gen_data
+            _gen_data()
+        except Exception as _exc:
+            st.error(f"Failed to generate data: {_exc}")
+            st.stop()
 
 # ---------------------------------------------------------------------------
 # Page configuration
