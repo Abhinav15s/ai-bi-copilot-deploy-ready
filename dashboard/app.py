@@ -230,24 +230,15 @@ _REQUIRED_COLS = [
 ]
 
 _uploaded_file = st.sidebar.file_uploader(
-    "Upload transactions CSV", type="csv", key="csv_uploader"
+    "Upload any CSV", type="csv", key="csv_uploader"
 )
 
 if _uploaded_file is not None:
     _df_upload = pd.read_csv(_uploaded_file)
-    # Normalize: strip whitespace and lowercase so "Date " and "DATE" both match
+    # Normalize column names: strip whitespace + lowercase
     _df_upload.columns = _df_upload.columns.str.strip().str.lower()
-    _missing = [c for c in _REQUIRED_COLS if c not in _df_upload.columns]
-    if _missing:
-        _found = ", ".join(_df_upload.columns.tolist()) or "(none)"
-        st.sidebar.error(
-            f"**Missing columns:** {', '.join(_missing)}\n\n"
-            f"**Columns found in your file:** {_found}\n\n"
-            "Download the template below to see the exact headers required."
-        )
-        st.stop()
     st.session_state["user_transactions"] = _df_upload
-    st.sidebar.success(f"✅ Loaded {len(_df_upload):,} rows")
+    st.sidebar.success(f"✅ Loaded {len(_df_upload):,} rows — {len(_df_upload.columns)} columns")
 
 # Template download button
 _template_csv = ",".join(_REQUIRED_COLS) + "\n"
@@ -281,6 +272,18 @@ if page == "📊 Business Overview":
         except Exception as exc:
             st.error(f"Could not load data: {exc}.  Run `python data/generate_data.py` first.")
             st.stop()
+
+    # Validate columns required by this page
+    _missing_cols = [c for c in _REQUIRED_COLS if c not in txn.columns]
+    if _missing_cols:
+        st.warning(
+            f"**📊 Business Overview** needs these columns that aren't in your CSV: "
+            f"`{', '.join(_missing_cols)}`\n\n"
+            "**Options:**\n"
+            "- Download the CSV template from the sidebar and fill it in\n"
+            "- Use **✨ AI Smart Charts** — it works with any dataset"
+        )
+        st.stop()
 
     if txn.empty:
         st.warning("The uploaded CSV has no data rows. Please add data and re-upload.")
