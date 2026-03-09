@@ -117,6 +117,42 @@ page = st.sidebar.radio(
 )
 
 # ---------------------------------------------------------------------------
+# Sidebar — CSV Upload
+# ---------------------------------------------------------------------------
+st.sidebar.markdown("---")
+st.sidebar.header("📂 Upload Your Data")
+
+_REQUIRED_COLS = [
+    "date", "region", "product_category", "customer_segment",
+    "revenue", "cost", "units_sold", "sales_rep", "country",
+]
+
+_uploaded_file = st.sidebar.file_uploader(
+    "Upload transactions CSV", type="csv", key="csv_uploader"
+)
+
+if _uploaded_file is not None:
+    _df_upload = pd.read_csv(_uploaded_file)
+    _missing = [c for c in _REQUIRED_COLS if c not in _df_upload.columns]
+    if _missing:
+        st.sidebar.error(
+            f"Missing required columns: {', '.join(_missing)}\n\n"
+            "Please fix your CSV and re-upload."
+        )
+        st.stop()
+    st.session_state["user_transactions"] = _df_upload
+    st.sidebar.success(f"✅ Loaded {len(_df_upload):,} rows")
+
+# Template download button
+_template_csv = ",".join(_REQUIRED_COLS) + "\n"
+st.sidebar.download_button(
+    label="⬇️ Download CSV template",
+    data=_template_csv,
+    file_name="transactions_template.csv",
+    mime="text/csv",
+)
+
+# ---------------------------------------------------------------------------
 # Helper
 # ---------------------------------------------------------------------------
 
@@ -131,11 +167,14 @@ def kpi_card(label: str, value: str, col) -> None:
 if page == "📊 Business Overview":
     st.title("📊 Business Overview")
 
-    try:
-        txn = load_transactions()
-    except Exception as exc:
-        st.error(f"Could not load data: {exc}.  Run `python data/generate_data.py` first.")
-        st.stop()
+    if "user_transactions" in st.session_state:
+        txn = st.session_state["user_transactions"]
+    else:
+        try:
+            txn = load_transactions()
+        except Exception as exc:
+            st.error(f"Could not load data: {exc}.  Run `python data/generate_data.py` first.")
+            st.stop()
 
     # KPI cards
     total_revenue = txn["revenue"].sum()
