@@ -133,11 +133,15 @@ _uploaded_file = st.sidebar.file_uploader(
 
 if _uploaded_file is not None:
     _df_upload = pd.read_csv(_uploaded_file)
+    # Normalize: strip whitespace and lowercase so "Date " and "DATE" both match
+    _df_upload.columns = _df_upload.columns.str.strip().str.lower()
     _missing = [c for c in _REQUIRED_COLS if c not in _df_upload.columns]
     if _missing:
+        _found = ", ".join(_df_upload.columns.tolist()) or "(none)"
         st.sidebar.error(
-            f"Missing required columns: {', '.join(_missing)}\n\n"
-            "Please fix your CSV and re-upload."
+            f"**Missing columns:** {', '.join(_missing)}\n\n"
+            f"**Columns found in your file:** {_found}\n\n"
+            "Download the template below to see the exact headers required."
         )
         st.stop()
     st.session_state["user_transactions"] = _df_upload
