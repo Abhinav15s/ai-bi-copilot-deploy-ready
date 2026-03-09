@@ -6,6 +6,8 @@ Run with::
     streamlit run dashboard/app.py
 """
 
+import json
+import re
 import sys
 from pathlib import Path
 
@@ -102,6 +104,105 @@ def load_reviews() -> pd.DataFrame:
 
 
 # ---------------------------------------------------------------------------
+# AI Smart Charts helpers
+# ---------------------------------------------------------------------------
+
+@st.cache_data(show_spinner=False)
+def _generate_chart_specs(schema_key: str, sample_json: str) -> list:
+    """Ask Groq to return declarative chart specs for the given schema.
+
+    Parameters
+    ----------
+    schema_key : str
+        Serialised column→dtype mapping (used as cache key).
+    sample_json : str
+        JSON string of the first 5 rows (sent to LLM for context).
+
+    Returns
+    -------
+    list of dict
+        Chart specification dicts, or [] on error.
+    """
+    api_key = os.environ.get("GROQ_API_KEY", "")
+    if not api_key or api_key == "your-groq-api-key-here":
+        return []
+    try:
+        from langchain_groq import ChatGroq
+        llm = ChatGroq(
+            model=os.environ.get("GROQ_MODEL", "llama-3.1-8b-instant"),
+            temperature=0,
+            api_key=api_key,
+        )
+        prompt = f"""You are a data visualisation expert. Given the dataset schema and sample below,
+sugggest 4-6 meaningful charts that reveal useful patterns.
+
+Column schema (name: dtype):
+{schema_key}
+
+Sample rows (JSON):
+{sample_json}
+
+Return ONLY a valid JSON array. Each element must be an object with:
+- "chart_type": one of "bar", "line", "pie", "scatter", "histogram"
+- "title": a short, descriptive chart title
+- For "bar" or "line": "x" (column), "y" (column), "agg" ("sum"|"mean"|"count"), optionally "color" (column)
+- For "pie": "names" (column), "values" (column), "agg" ("sum"|"count")
+- For "scatter": "x" (column), "y" (column), optionally "color" (column)
+- For "histogram": "x" (column)
+
+Only use column names that exist exactly in the schema. Output valid JSON only — no markdown, no explanation."""
+        response = llm.invoke(prompt)
+        content = response.content.strip()
+        # Strip markdown code fences if present
+        match = re.search(r"```(?:json)?\s*(.*?)```", content, re.DOTALL)
+        content = match.group(1).strip() if match else content
+        return json.loads(content)
+    except Exception:  # noqa: BLE001
+        return []
+
+
+def _render_chart(spec: dict, df: pd.DataFrame) -> None:
+    """Render a single Plotly chart from a declarative *spec* dict."""
+    chart_type = spec.get("chart_type", "bar")
+    title = spec.get("title", "Chart")
+    try:
+        if chart_type in ("bar", "line"):
+            x, y = spec["x"], spec["y"]
+            agg = spec.get("agg", "sum")
+            color = spec.get("color")
+            if agg == "count":
+                data = df.groupby(x).size().reset_index(name=y)
+            elif agg == "mean":
+                data = df.groupby(x)[y].mean().reset_index()
+            else:
+                data = df.groupby(x)[y].sum().reset_index()
+            if chart_type == "bar":
+                fig = px.bar(data, x=x, y=y, color=color, title=title)
+            else:
+                fig = px.line(data, x=x, y=y, title=title, markers=True)
+        elif chart_type == "pie":
+            names, values = spec["names"], spec["values"]
+            agg = spec.get("agg", "sum")
+            if agg == "count":
+                data = df.groupby(names).size().reset_index(name=values)
+            else:
+                data = df.groupby(names)[values].sum().reset_index()
+            fig = px.pie(data, names=names, values=values, title=title, hole=0.3)
+        elif chart_type == "scatter":
+            x, y = spec["x"], spec["y"]
+            color = spec.get("color")
+            fig = px.scatter(df, x=x, y=y, color=color, title=title)
+        elif chart_type == "histogram":
+            x = spec["x"]
+            fig = px.histogram(df, x=x, title=title)
+        else:
+            return
+        st.plotly_chart(fig, use_container_width=True)
+    except Exception as exc:  # noqa: BLE001
+        st.caption(f"⚠️ Could not render '{title}': {exc}")
+
+
+# ---------------------------------------------------------------------------
 # Sidebar navigation
 # ---------------------------------------------------------------------------
 st.sidebar.title("🤖 AI BI Copilot")
@@ -113,6 +214,7 @@ page = st.sidebar.radio(
         "⚙️ Process Mining",
         "💬 Sentiment Analysis",
         "🤖 Ask the Copilot",
+        "✨ AI Smart Charts",
     ],
 )
 
@@ -359,3 +461,60 @@ elif page == "🤖 Ask the Copilot":
                 from modules.genai_query import ask_question as ai_ask
                 answer = ai_ask(question)
             st.success(answer)
+
+
+# ---------------------------------------------------------------------------
+# Page 5 — AI Smart Charts
+# ---------------------------------------------------------------------------
+elif page == "✨ AI Smart Charts":
+    st.title("✨ AI Smart Charts")
+    st.markdown(
+        "Upload a CSV in the sidebar and the AI will analyse the dataset structure "
+        "and automatically generate the most insightful visualisations for you."
+    )
+
+    if "user_transactions" not in st.session_state:
+        st.info(
+            "👈 Upload a CSV file in the sidebar to get started.  \n"
+            "The AI will inspect the columns and sample rows, then decide which "
+            "charts best reveal the patterns in your data."
+        )
+        st.stop()
+
+    _df = st.session_state["user_transactions"]
+
+    # Build schema string + sample for the LLM
+    _schema_key = "\n".join(f"  {col}: {dtype}" for col, dtype in _df.dtypes.items())
+    _sample_json = _df.head(5).to_json(orient="records", date_format="iso")
+
+    # Check API key availability
+    _api_key = os.environ.get("GROQ_API_KEY", "")
+    if not _api_key or _api_key == "your-groq-api-key-here":
+        st.warning(
+            "⚠️ GROQ_API_KEY not set — AI chart generation is unavailable.  \n"
+            "Add your key to Streamlit Secrets (Cloud) or `.env` (local)."
+        )
+        st.stop()
+
+    # Regenerate button clears the cache for this schema
+    if st.button("🔄 Regenerate charts"):
+        _generate_chart_specs.clear()
+
+    with st.spinner("🤖 Analysing your dataset and generating chart ideas …"):
+        _specs = _generate_chart_specs(_schema_key, _sample_json)
+
+    if not _specs:
+        st.error(
+            "The AI could not generate chart specifications.  \n"
+            "Check your GROQ_API_KEY and try again, or verify the LLM logs."
+        )
+        st.stop()
+
+    st.success(f"✅ Generated **{len(_specs)}** charts based on your dataset")
+    st.markdown("---")
+
+    # Render charts in a 2-column grid
+    _cols = st.columns(2)
+    for i, _spec in enumerate(_specs):
+        with _cols[i % 2]:
+            _render_chart(_spec, _df)
