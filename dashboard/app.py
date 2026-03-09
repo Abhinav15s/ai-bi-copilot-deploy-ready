@@ -180,11 +180,16 @@ if page == "📊 Business Overview":
             st.error(f"Could not load data: {exc}.  Run `python data/generate_data.py` first.")
             st.stop()
 
+    if txn.empty:
+        st.warning("The uploaded CSV has no data rows. Please add data and re-upload.")
+        st.stop()
+
     # KPI cards
     total_revenue = txn["revenue"].sum()
     total_transactions = len(txn)
-    avg_order_value = txn["revenue"].mean()
-    top_region = txn.groupby("region")["revenue"].sum().idxmax()
+    avg_order_value = txn["revenue"].mean() if not txn.empty else 0
+    _region_revenue = txn.groupby("region")["revenue"].sum()
+    top_region = _region_revenue.idxmax() if not _region_revenue.empty else "N/A"
 
     c1, c2, c3, c4 = st.columns(4)
     kpi_card("💰 Total Revenue", f"${total_revenue:,.0f}", c1)
